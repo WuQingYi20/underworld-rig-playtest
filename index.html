@@ -243,6 +243,41 @@ const engine = new Engine(GODOT_CONFIG);
     initializing = false;
   }
 
+  // A newer build was deployed: its service worker takes over (export/service_worker.js
+  // skips waiting) and we load once more, so nobody plays a stale cached build.
+  // sessionStorage stops a reload loop.
+  function freshen() {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+      return Promise.resolve();
+    }
+    let done = false;
+    try { done = sessionStorage.getItem('ug_sw_fresh') === '1'; } catch (e) { done = true; }
+    return navigator.serviceWorker.getRegistration().then((reg) => {
+      if (!reg) {
+        return null;
+      }
+      return reg.update().catch(() => {}).then(() => {
+        const next = reg.installing || reg.waiting;
+        if (!next || done) {
+          try { sessionStorage.removeItem('ug_sw_fresh'); } catch (e) {}
+          return null;
+        }
+        try { sessionStorage.setItem('ug_sw_fresh', '1'); } catch (e) {}
+        setStatusMode('progress');
+        pct.textContent = '有新版本，正在更新……';
+        return new Promise(() => {
+          navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+          next.postMessage('update');   // an old Godot worker only moves on when asked
+          // still stuck after a few seconds: throw the old worker away and load from the network
+          setTimeout(() => reg.unregister().then(() => window.location.reload()), 6000);
+        });
+      });
+    }).catch(() => null);
+  }
+
+  freshen().then(boot);
+
+  function boot() {
   const missing = Engine.getMissingFeatures({
     threads: GODOT_THREADS_ENABLED,
   });
@@ -279,6 +314,7 @@ const engine = new Engine(GODOT_CONFIG);
       setProgress(1);
       setStatusMode('hidden');
     }, displayFailureNotice);
+  }
   }
 }());
 </script>
