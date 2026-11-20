@@ -107,7 +107,7 @@ body {
    The game pushes one JSON line per event through UG_track(); this page
    batches them, keeps unsent ones in localStorage, and sends what is left
    with sendBeacon when the tab is hidden or closed. */
-window.UG_TELEMETRY_URL = "";
+window.UG_TELEMETRY_URL = "https://149.104.1.251/collect";
 (function () {
   var KEY = "ug_queue_v1";
   var q = [];
