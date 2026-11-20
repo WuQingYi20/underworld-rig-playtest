@@ -109,6 +109,19 @@ body {
    batches them, keeps unsent ones in localStorage, and sends what is left
    with sendBeacon when the tab is hidden or closed. */
 window.UG_TELEMETRY_URL = "https://149.104.1.251/collect";
+/* The threaded build needs cross-origin isolation. Our own server sends the
+   COOP/COEP headers; GitHub Pages cannot, so Godot's service worker adds them,
+   but only pages loaded after it is active get them, and Godot's shell does not
+   always reload (it shows a black screen). Reload once when the worker is ready. */
+if (!window.crossOriginIsolated && window.isSecureContext && "serviceWorker" in navigator) {
+  navigator.serviceWorker.ready.then(function () {
+    try {
+      if (sessionStorage.getItem("ug_coi_reload")) return;
+      sessionStorage.setItem("ug_coi_reload", "1");
+    } catch (e) { return; }
+    location.reload();
+  });
+}
 (function () {
   var KEY = "ug_queue_v1";
   var q = [];
